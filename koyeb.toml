@@ -1,0 +1,8 @@
+# Koyeb static site configuration
+# This file tells Koyeb to redirect all routes to index.html
+# which is required for React Router (SPA routing)
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
