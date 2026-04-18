@@ -1,8 +1,8 @@
 import axios from 'axios'
 
-// Development  → http://localhost:8000       (from .env.development)
-// Production   → https://xxx.onrender.com   (from .env.production)
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Development  → http://127.0.0.1:8080/
+// Production   → from VITE_API_URL env var
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8080/'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -40,5 +40,12 @@ export const deleteBill = (id) => api.delete(`/bills/${id}`)
 // Company Settings
 export const getCompanySettings = () => api.get('/settings/company')
 export const saveCompanySettings = (data) => api.post('/settings/company', data)
+export const uploadCompanyLogo = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post('/settings/company/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 export default api

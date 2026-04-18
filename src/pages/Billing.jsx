@@ -103,7 +103,7 @@ export default function Billing() {
 
       closeForm()
       load()
-      generateInvoicePDF(res.data, company)
+      await generateInvoicePDF(res.data, company)
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Failed to save invoice')
     } finally { setLoading(false) }
@@ -115,7 +115,9 @@ export default function Billing() {
     catch { toast.error('Failed to delete') }
   }
 
-  const handleDownload = (bill) => generateInvoicePDF(bill, company)
+  const handleDownload = async (bill) => {
+    await generateInvoicePDF(bill, company)
+  }
 
   return (
     <div>
@@ -250,26 +252,24 @@ export default function Billing() {
 
               {/* Line Items */}
               <div className="card" style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Line Items</h3>
-                  <button className="btn btn-outline btn-sm" onClick={addRow}>
-                    <Plus size={14} /> Add Row
-                  </button>
-                </div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Line Items</h3>
 
                 {billItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', border: '2px dashed #e2e8f0', borderRadius: 8 }}>
-                    Click "Add Row" to add items
+                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', border: '2px dashed #e2e8f0', borderRadius: 8, marginBottom: 10 }}>
+                    Click "+ Add Item" below to start adding products
                   </div>
                 ) : (
                   <>
+                    {/* Column headers */}
                     <div className="item-row" style={{ marginBottom: 6 }}>
                       {['ITEM', 'QTY', 'PRICE (₹)', 'TOTAL', ''].map(h => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8' }}>{h}</span>
                       ))}
                     </div>
+
+                    {/* Item rows */}
                     {billItems.map((bi, idx) => (
-                      <div key={idx} className="item-row">
+                      <div key={idx} className="item-row" style={{ marginBottom: 8 }}>
                         <select value={bi.item_id} onChange={e => updateRow(idx, 'item_id', e.target.value)} style={{ fontSize: 13 }}>
                           {items.map(it => <option key={it.id} value={it.id}>{it.item_name}</option>)}
                         </select>
@@ -280,13 +280,34 @@ export default function Billing() {
                         <span style={{ fontSize: 13, fontWeight: 600 }}>
                           ₹{(bi.quantity * bi.unit_price).toFixed(2)}
                         </span>
-                        <button className="btn btn-danger btn-sm btn-icon" onClick={() => removeRow(idx)}>
+                        <button className="btn btn-danger btn-sm btn-icon" title="Remove" onClick={() => removeRow(idx)}>
                           <Trash2 size={13} />
                         </button>
                       </div>
                     ))}
+
+                    {/* Subtotal line */}
+                    <div style={{
+                      display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+                      gap: 12, borderTop: '1px dashed #e2e8f0',
+                      paddingTop: 10, marginTop: 4, marginBottom: 4,
+                    }}>
+                      <span style={{ fontSize: 13, color: '#64748b' }}>Items subtotal:</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', minWidth: 90, textAlign: 'right' }}>
+                        ₹{billItems.reduce((s, bi) => s + bi.quantity * bi.unit_price, 0).toFixed(2)}
+                      </span>
+                    </div>
                   </>
                 )}
+
+                {/* Add Item button — fixed at bottom of card */}
+                <button
+                  className="btn btn-outline"
+                  onClick={addRow}
+                  style={{ width: '100%', justifyContent: 'center', marginTop: 8, borderStyle: 'dashed', color: '#6366f1', borderColor: '#6366f1' }}
+                >
+                  <Plus size={15} /> Add Item
+                </button>
               </div>
 
               {/* Notes */}
