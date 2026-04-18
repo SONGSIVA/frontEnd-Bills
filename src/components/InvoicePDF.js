@@ -56,9 +56,7 @@ async function fetchImageBase64(url) {
 // ── Ensure enough space — push to new page if needed ──────────
 function ensureSpace(doc, curY, needed, companyName, companyWebsite) {
   if (curY + needed > SAFE_BOTTOM) {
-    drawFooter(doc, companyName, companyWebsite)
     doc.addPage()
-    drawFooter(doc, companyName, companyWebsite)
     return MARGIN + 6
   }
   return curY
@@ -113,9 +111,6 @@ export async function generateInvoicePDF(bill, company = {}) {
 
   if (logoBase64) {
     try {
-      // Light grey background behind logo
-      doc.setFillColor(245, 245, 250)
-      doc.roundedRect(LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE, 3, 3, 'F')
       doc.addImage(
         logoBase64, logoFmt,
         LOGO_X + 2, LOGO_Y + 2,
@@ -128,13 +123,7 @@ export async function generateInvoicePDF(bill, company = {}) {
   }
 
   // ── Company info — top-right, right-aligned ───────────────────
-  // Company name — bold, larger
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(128, 0, 64)  // Company color
-  doc.text(companyName, RIGHT_EDGE, LOGO_Y + 6, { align: 'right' })
-
-  // All other company lines — same font, same size, same colour
+  // Company address and contact — same font, same size, same colour
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(INFO_SIZE)
   doc.setTextColor(...INFO_COLOR)
@@ -217,8 +206,6 @@ export async function generateInvoicePDF(bill, company = {}) {
   const tableBody = items.map((bi, idx) => [
     idx + 1,
     bi.item.item_name,
-    bi.item.item_code,
-    bi.item.description || '—',
     bi.quantity,
     `Rs.${bi.unit_price.toFixed(2)}`,
     `Rs.${bi.total_price.toFixed(2)}`,
@@ -226,7 +213,7 @@ export async function generateInvoicePDF(bill, company = {}) {
 
   autoTable(doc, {
     startY: curY,
-    head: [['#', 'Item Name', 'Code', 'Description', 'Qty', 'Unit Price', 'Amount']],
+    head: [['#', 'Item Name', 'Qty', 'Unit Price', 'Amount']],
     body: tableBody,
     headStyles: {
       fillColor: [128, 0, 64], textColor: 255,
@@ -240,16 +227,12 @@ export async function generateInvoicePDF(bill, company = {}) {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: 8,  halign: 'center' },
-      2: { cellWidth: 20 },
-      3: { cellWidth: 38, textColor: [0, 0, 0] },
-      4: { cellWidth: 12, halign: 'center' },
-      5: { cellWidth: 26, halign: 'right' },
-      6: { cellWidth: 26, halign: 'right' },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 35, halign: 'right' },
+      4: { cellWidth: 35, halign: 'right' },
     },
     margin: { left: MARGIN, right: MARGIN },
-    didDrawPage: () => {
-      drawFooter(doc, companyName, companyWebsite)
-    },
   })
 
   curY = doc.lastAutoTable.finalY + 8
@@ -341,8 +324,16 @@ export async function generateInvoicePDF(bill, company = {}) {
     curY += BANK_H + 4
   }
 
-  // ── Footer on last page ───────────────────────────────────────
-  drawFooter(doc, companyName, companyWebsite)
+  // ── Thank you message — right aligned ──────────────────────
+  const thankYouY = (company.bank_name || company.bank_account) ? curY + 20 : curY + 16
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(128, 0, 64)
+  doc.text('Thanking you', RIGHT_EDGE, thankYouY, { align: 'right' })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(128, 0, 64)
+  doc.text(companyName, RIGHT_EDGE, thankYouY + 6, { align: 'right' })
 
   doc.save(`${invoice_number}.pdf`)
 }
