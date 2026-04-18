@@ -239,6 +239,7 @@ export async function generateInvoicePDF(bill, company = {}) {
       4: { cellWidth: 30, halign: 'center' },
     },
     margin: { left: 14, right: 14, top: 0, bottom: 0 },
+    repeatHeader: false,
   })
 
   curY = doc.lastAutoTable.finalY + 8
