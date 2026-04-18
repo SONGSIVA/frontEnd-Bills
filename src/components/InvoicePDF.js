@@ -123,6 +123,12 @@ export async function generateInvoicePDF(bill, company = {}) {
   }
 
   // ── Company info — top-right, right-aligned ───────────────────
+  // Company name — bold, larger
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(128, 0, 64)
+  doc.text(companyName, RIGHT_EDGE, LOGO_Y + 6, { align: 'right' })
+
   // Company address and contact — same font, same size, same colour
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(INFO_SIZE)
@@ -217,7 +223,7 @@ export async function generateInvoicePDF(bill, company = {}) {
     body: tableBody,
     headStyles: {
       fillColor: [128, 0, 64], textColor: 255,
-      fontStyle: 'bold', fontSize: 8.5, cellPadding: 3,
+      fontStyle: 'bold', fontSize: 8.5, cellPadding: 3, halign: 'center',
     },
     bodyStyles: {
       fontSize: 8.5,
@@ -226,13 +232,13 @@ export async function generateInvoicePDF(bill, company = {}) {
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 8,  halign: 'center' },
-      1: { cellWidth: 50 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 35, halign: 'right' },
-      4: { cellWidth: 35, halign: 'right' },
+      0: { cellWidth: 10,  halign: 'center' },
+      1: { cellWidth: 70, halign: 'center' },
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 30, halign: 'center' },
+      4: { cellWidth: 30, halign: 'center' },
     },
-    margin: { left: MARGIN, right: MARGIN },
+    margin: { left: 14, right: 14, top: 0, bottom: 0 },
   })
 
   curY = doc.lastAutoTable.finalY + 8
@@ -325,7 +331,14 @@ export async function generateInvoicePDF(bill, company = {}) {
   }
 
   // ── Thank you message — right aligned ──────────────────────
-  const thankYouY = (company.bank_name || company.bank_account) ? curY + 20 : curY + 16
+  let thankYouY = (company.bank_name || company.bank_account) ? curY + 38 : curY + 34
+  
+  // Check if message fits on current page, if not add new page
+  if (thankYouY + 12 > PAGE_H - 10) {
+    doc.addPage()
+    thankYouY = MARGIN + 20
+  }
+  
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor(128, 0, 64)
