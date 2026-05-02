@@ -213,34 +213,46 @@ export async function generateInvoicePDF(bill, company = {}) {
     idx + 1,
     bi.item.item_name,
     bi.quantity,
-    `Rs.${bi.unit_price.toFixed(2)}`,
-    `Rs.${bi.total_price.toFixed(2)}`,
+    bi.unit_price.toFixed(2),
+    bi.total_price.toFixed(2),
   ])
 
   autoTable(doc, {
-    startY: curY,
-    head: [['#', 'Item Name', 'Qty', 'Unit Price', 'Amount']],
-    body: tableBody,
-    headStyles: {
-      fillColor: [128, 0, 64], textColor: 255,
-      fontStyle: 'bold', fontSize: 8.5, cellPadding: 3, halign: 'center',
-    },
-    bodyStyles: {
-      fontSize: 8.5,
-      textColor: [0, 0, 0],
-      cellPadding: 2.5,
-    },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' },
-      1: { cellWidth: 70, halign: 'center' },
-      2: { cellWidth: 18, halign: 'center' },
-      3: { cellWidth: 30, halign: 'center' },
-      4: { cellWidth: 30, halign: 'center' },
-    },
-    margin: { left: 14, right: 14, top: 0, bottom: 0 },
-    repeatHeader: false,
-  })
+  startY: curY,
+  head: [['#', 'Item Name', 'Qty', 'Unit Price', 'Amount']],
+  body: tableBody,
+  headStyles: {
+    fillColor: [128, 0, 64], 
+    textColor: 255,
+    fontStyle: 'bold', 
+    fontSize: 8.5, 
+    cellPadding: 3,
+    halign: 'center', // default for all headers
+  },
+  bodyStyles: {
+    fontSize: 8.5,
+    textColor: [0, 0, 0],
+    cellPadding: 2.5,
+  },
+  alternateRowStyles: { fillColor: [248, 250, 252] },
+  columnStyles: {
+    0: { cellWidth: 10,  halign: 'center' },  
+    1: { cellWidth: 94,  halign: 'left' },    
+    2: { cellWidth: 18,  halign: 'center' },  
+    3: { cellWidth: 30,  halign: 'right' },   
+    4: { cellWidth: 30,  halign: 'right' },   
+  },
+  didParseCell: (data) => {
+    if (data.section === 'head') {
+      if (data.column.index === 1) data.cell.styles.halign = 'left'
+      if (data.column.index === 3 || data.column.index === 4) {
+        data.cell.styles.halign = 'right'
+      }
+    }
+  },
+  margin: { left: 14, right: 14, top: 0, bottom: 0 },
+  repeatHeader: false,
+})
 
   curY = doc.lastAutoTable.finalY + 8
 
@@ -264,10 +276,11 @@ export async function generateInvoicePDF(bill, company = {}) {
   doc.roundedRect(summaryX, curY, summaryW, SUMMARY_H, 3, 3, 'FD')
 
   // Summary rows
+  const roundOffValue = Math.round(bill.total_amount) - bill.total_amount
   const summaryRows = [
-    { label: 'Subtotal',                  value: `Rs.${bill.subtotal.toFixed(2)}`     },
-    { label: `CGST (${bill.cgst_rate}%)`, value: `Rs.${bill.cgst_amount.toFixed(2)}` },
-    { label: `SGST (${bill.sgst_rate}%)`, value: `Rs.${bill.sgst_amount.toFixed(2)}` },
+    { label: 'Subtotal',                  value: bill.subtotal.toFixed(2)     },
+    { label: `CGST (${bill.cgst_rate}%)`, value: bill.cgst_amount.toFixed(2) },
+    { label: `SGST (${bill.sgst_rate}%)`, value: bill.sgst_amount.toFixed(2) },
   ]
   let rowY = curY + 9
   summaryRows.forEach(r => {
@@ -280,6 +293,15 @@ export async function generateInvoicePDF(bill, company = {}) {
     rowY += 8.5
   })
 
+  // Round-off row
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(INFO_SIZE)
+  doc.setTextColor(100, 116, 139)
+  doc.text('Round Off', labelX, rowY)
+  doc.setTextColor(...INFO_COLOR)
+  doc.text(roundOffValue.toFixed(2), valueX, rowY, { align: 'right' })
+  rowY += 8.5
+
   // Divider
   doc.setDrawColor(210, 214, 230)
   doc.setLineWidth(0.3)
@@ -291,7 +313,7 @@ export async function generateInvoicePDF(bill, company = {}) {
   doc.setFontSize(10)
   doc.setTextColor(128, 0, 64)
   doc.text('TOTAL', labelX, totalY)
-  doc.text(`Rs.${bill.total_amount.toFixed(2)}`, valueX, totalY, { align: 'right' })
+  doc.text(Math.round(bill.total_amount).toFixed(2), valueX, totalY, { align: 'right' })
 
   // ── Notes (left column, aligned with summary) ─────────────────
   if (bill.notes) {
@@ -309,9 +331,11 @@ export async function generateInvoicePDF(bill, company = {}) {
 
   curY = totalY + 12
 
-  // ── Bank details ──────────────────────────────────────────────
+  // ── Bank details (left) and Thank you message (right) on same line ──
   if (company.bank_name || company.bank_account) {
     curY = ensureSpace(doc, curY, BANK_H, companyName, companyWebsite)
+    
+    // Bank details card - left side
     doc.setDrawColor(226, 232, 240)
     doc.setFillColor(248, 250, 252)
     doc.roundedRect(MARGIN, curY, CONTENT_W / 2, BANK_H - 4, 3, 3, 'FD')
@@ -328,26 +352,38 @@ export async function generateInvoicePDF(bill, company = {}) {
     if (company.bank_name)    { doc.text(`Bank: ${company.bank_name}`,       MARGIN + 4, bY); bY += INFO_GAP }
     if (company.bank_account) { doc.text(`A/C No: ${company.bank_account}`,  MARGIN + 4, bY); bY += INFO_GAP }
     if (company.bank_ifsc)    { doc.text(`IFSC: ${company.bank_ifsc}`,       MARGIN + 4, bY) }
+    
+    // Thank you message - right side, aligned with bank details
+    const thankYouY = curY + 12 + (INFO_GAP * 2)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(128, 0, 64)
+    doc.text('Thanking you', RIGHT_EDGE, thankYouY, { align: 'right' })
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(128, 0, 64)
+    doc.text(companyName, RIGHT_EDGE, thankYouY + 6, { align: 'right' })
+    
     curY += BANK_H + 4
+  } else {
+    // If no bank details, show thank you message only
+    let thankYouY = curY + 10 + (INFO_GAP * 2)
+    
+    // Check if message fits on current page, if not add new page
+    if (thankYouY + 12 > PAGE_H - 10) {
+      doc.addPage()
+      thankYouY = MARGIN + 20
+    }
+    
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(128, 0, 64)
+    doc.text('Thanking you', RIGHT_EDGE, thankYouY, { align: 'right' })
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(128, 0, 64)
+    doc.text(companyName, RIGHT_EDGE, thankYouY + 6, { align: 'right' })
   }
-
-  // ── Thank you message — right aligned ──────────────────────
-  let thankYouY = (company.bank_name || company.bank_account) ? curY + 38 : curY + 34
-  
-  // Check if message fits on current page, if not add new page
-  if (thankYouY + 12 > PAGE_H - 10) {
-    doc.addPage()
-    thankYouY = MARGIN + 20
-  }
-  
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(128, 0, 64)
-  doc.text('Thanking you', RIGHT_EDGE, thankYouY, { align: 'right' })
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(128, 0, 64)
-  doc.text(companyName, RIGHT_EDGE, thankYouY + 6, { align: 'right' })
 
   doc.save(`${invoice_number}.pdf`)
 }
