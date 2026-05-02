@@ -14,6 +14,8 @@ const SAFE_BOTTOM = PAGE_H - FOOTER_H - 4
 const INFO_SIZE   = 8.5
 const INFO_COLOR  = [128, 0, 64]      // company details color
 const INFO_GAP    = 5.2               // mm between each info line
+const HEADER_INFO_GAP = 4.3           // tighter spacing for top company details
+const HEADER_META_GAP = 5.5           // breathing room before invoice metadata
 
 // ── Draw footer — no background, right-aligned, 2 lines ───────
 function drawFooter(doc, companyName, companyWebsite) {
@@ -93,11 +95,20 @@ export async function generateInvoicePDF(bill, company = {}) {
   }
 
   // ── HEADER — no background colour ────────────────────────────
-  // Count info lines to size the header block dynamically
-  const infoLineCount = [companyAddr, companyContact, companyGST, companyWebsite]
-                          .filter(Boolean).length
-  // Company name row + info lines + invoice row + padding
-  const HEADER_H = 8 + 7 + (infoLineCount * INFO_GAP) + 7 + 4
+  const LOGO_Y = 3
+  const HEADER_NAME_Y = LOGO_Y + 6
+  const HEADER_FIRST_INFO_Y = HEADER_NAME_Y + HEADER_INFO_GAP + 0.5
+  const companyAddrLines = companyAddr ? doc.splitTextToSize(companyAddr, 90) : []
+
+  // Count wrapped info lines to size the header block dynamically.
+  const infoLineCount = companyAddrLines.length +
+    [companyContact, companyGST, companyWebsite].filter(Boolean).length
+
+  const headerInfoBottom = infoLineCount
+    ? HEADER_FIRST_INFO_Y + (infoLineCount * HEADER_INFO_GAP)
+    : HEADER_NAME_Y + HEADER_INFO_GAP
+  const HEADER_META_Y = headerInfoBottom + HEADER_META_GAP
+  const HEADER_H = HEADER_META_Y + 5
 
   // Thin bottom border under header instead of filled background
   doc.setDrawColor(210, 214, 230)
@@ -107,7 +118,6 @@ export async function generateInvoicePDF(bill, company = {}) {
   // ── Logo — top-left, fixed ────────────────────────────────────
   const LOGO_SIZE = HEADER_H - 6
   const LOGO_X    = MARGIN - 2
-  const LOGO_Y    = 3
 
   if (logoBase64) {
     try {
@@ -127,28 +137,26 @@ export async function generateInvoicePDF(bill, company = {}) {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(128, 0, 64)
-  doc.text(companyName, RIGHT_EDGE, LOGO_Y + 6, { align: 'right' })
+  doc.text(companyName, RIGHT_EDGE, HEADER_NAME_Y, { align: 'right' })
 
   // Company address and contact — same font, same size, same colour
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(INFO_SIZE)
   doc.setTextColor(...INFO_COLOR)
 
-  let infoY = LOGO_Y + 6 + INFO_GAP + 0.5
-  if (companyAddr) {
-    // Wrap long addresses to max 90mm wide
-    const addrLines = doc.splitTextToSize(companyAddr, 90)
-    addrLines.forEach(l => {
+  let infoY = HEADER_FIRST_INFO_Y
+  if (companyAddrLines.length) {
+    companyAddrLines.forEach(l => {
       doc.text(l, RIGHT_EDGE, infoY, { align: 'right' })
-      infoY += INFO_GAP
+      infoY += HEADER_INFO_GAP
     })
   }
-  if (companyContact) { doc.text(companyContact,          RIGHT_EDGE, infoY, { align: 'right' }); infoY += INFO_GAP }
-  if (companyGST)     { doc.text(`GSTIN: ${companyGST}`, RIGHT_EDGE, infoY, { align: 'right' }); infoY += INFO_GAP }
-  if (companyWebsite) { doc.text(companyWebsite,          RIGHT_EDGE, infoY, { align: 'right' }); infoY += INFO_GAP }
+  if (companyContact) { doc.text(companyContact,          RIGHT_EDGE, infoY, { align: 'right' }); infoY += HEADER_INFO_GAP }
+  if (companyGST)     { doc.text(`GSTIN: ${companyGST}`, RIGHT_EDGE, infoY, { align: 'right' }); infoY += HEADER_INFO_GAP }
+  if (companyWebsite) { doc.text(companyWebsite,          RIGHT_EDGE, infoY, { align: 'right' }); infoY += HEADER_INFO_GAP }
 
   // Invoice metadata line — same style, right-aligned, at bottom of header
-  const metaY = HEADER_H - 3
+  const metaY = HEADER_META_Y
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(INFO_SIZE)
   doc.setTextColor(...INFO_COLOR)
